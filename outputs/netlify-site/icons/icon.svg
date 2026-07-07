@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Melanin Unity Clips icon">
+  <rect width="512" height="512" rx="108" fill="#050505"/>
+  <path d="M92 358V154h62l48 104 48-104h62v204h-54V237l-39 84h-34l-39-84v121H92Z" fill="#d6a93a"/>
+  <path d="M333 154h62v126c0 18 10 29 27 29 16 0 27-11 27-29V154h62v128c0 51-35 82-89 82s-89-31-89-82V154Z" fill="#fffaf0"/>
+  <path d="M78 408h356" stroke="#0d7f48" stroke-width="18" stroke-linecap="round"/>
+  <path d="M78 444h258" stroke="#c2292e" stroke-width="18" stroke-linecap="round"/>
+</svg>

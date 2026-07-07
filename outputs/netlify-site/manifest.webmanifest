@@ -1,0 +1,19 @@
+{
+  "name": "Melanin Unity Clips",
+  "short_name": "MU Clips",
+  "description": "A scroll-only video discovery app for creators, ideas, culture, lifestyle, and community-driven clips.",
+  "start_url": "/#feed",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

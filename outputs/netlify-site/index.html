@@ -142,8 +142,8 @@
   <script>
     const drawer = document.getElementById('drawer');
     const feed = document.getElementById('manualFeed');
-    const clips = [...document.querySelectorAll('.clip')];
-    const videos = [...document.querySelectorAll('video')];
+    let clips = [...document.querySelectorAll('.clip')];
+    let videos = [...document.querySelectorAll('video')];
     let activeClip = 0;
     let touchStartY = 0;
     let gestureLocked = false;
@@ -151,6 +151,10 @@
     function showPage(id){ document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === id)); document.querySelectorAll('.drawer a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#'+id)); drawer.classList.remove('open'); document.querySelector('.nav-toggle').classList.remove('open'); if(id === 'feed') setTimeout(() => goToClip(activeClip, true), 80); else videos.forEach(v => v.pause()); }
     function toggleMute(){ const muted = !videos[0].muted; videos.forEach(v => v.muted = muted); document.querySelectorAll('.rail .round:first-child').forEach(b => b.textContent = muted ? 'Ã°Å¸â€â€¡' : 'Ã°Å¸â€Å '); }
     function shareClip(){ if(navigator.share) navigator.share({title:'Melanin Unity Clips', text:'Check out this clip preview.'}); else alert('Share sheet would open on mobile.'); }
+    function refreshFeedItems() {
+      clips = [...document.querySelectorAll('.clip')];
+      videos = [...document.querySelectorAll('video')];
+    }
     function goToClip(index, instant = false){
       activeClip = Math.max(0, Math.min(clips.length - 1, index));
       clips[activeClip].scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'start' });
@@ -163,6 +167,37 @@
       gestureLocked = true;
       goToClip(next);
       window.setTimeout(() => { gestureLocked = false; }, 650);
+    }
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    }
+    async function loadPublishedClips() {
+      if (location.protocol === 'file:') return;
+      try {
+        const response = await fetch('/.netlify/functions/public-feed');
+        const data = await response.json();
+        if (!response.ok || !Array.isArray(data.clips) || !data.clips.length) return;
+        const existingIds = new Set([...document.querySelectorAll('[data-submission-id]')].map(el => el.dataset.submissionId));
+        const newClips = data.clips.filter(item => item.id && !existingIds.has(item.id));
+        if (!newClips.length) return;
+        feed.insertAdjacentHTML('beforeend', newClips.map(item => `
+          <article class="clip" data-submission-id="${escapeHtml(item.id)}">
+            <video src="${escapeHtml(item.videoUrl)}" playsinline controls preload="metadata"></video>
+            <div class="shade"></div>
+            <div class="caption">
+              <span class="pill">${escapeHtml(item.category)}</span>
+              <h2>${escapeHtml(item.title)}</h2>
+              <p><b>@Community Upload</b></p>
+              <p>${escapeHtml(item.caption)}</p>
+              <p>Published clip</p>
+            </div>
+            <div class="rail"><button class="round" onclick="toggleMute()" aria-label="Mute">M</button><button class="round" onclick="shareClip()" aria-label="Share">S</button><button class="round" onclick="alert('Report saved for moderation review.')" aria-label="Report">!</button></div>
+          </article>
+        `).join(''));
+        refreshFeedItems();
+      } catch (error) {
+        console.warn('Published clips could not load.', error);
+      }
     }
     feed.addEventListener('wheel', (event) => {
       event.preventDefault();
@@ -302,6 +337,7 @@
     document.getElementById('loadSubmissions')?.addEventListener('click', loadSubmissions);
     window.addEventListener('hashchange', () => showPage(location.hash.replace('#','') || 'feed'));
     showPage(location.hash.replace('#','') || 'feed');
+    loadPublishedClips();
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});

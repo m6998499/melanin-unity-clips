@@ -303,6 +303,16 @@
       localStorage.setItem('mucUploads', JSON.stringify(uploads.slice(0, 40)));
       renderMyUploads();
     }
+    async function saveSubmissionMetadata(client, payload, deleteToken) {
+      const withDeleteToken = await client.from('video_submissions').insert({
+        ...payload,
+        owner_delete_token: deleteToken
+      }).select('id,title,status').single();
+      const message = String(withDeleteToken.error?.message || '');
+      if (!withDeleteToken.error || !message.includes('owner_delete_token')) return { ...withDeleteToken, canSelfDelete: true };
+      const withoutDeleteToken = await client.from('video_submissions').insert(payload).select('id,title,status').single();
+      return { ...withoutDeleteToken, canSelfDelete: false };
+    }
     function removeUploadRecord(id) {
       localStorage.setItem('mucUploads', JSON.stringify(getSavedUploads().filter(item => item.id !== id)));
       renderMyUploads();
@@ -376,7 +386,7 @@
         });
         setUploadStatus('Saving submission metadata...');
         const deleteToken = crypto.randomUUID();
-        const metadataResult = await client.from('video_submissions').insert({
+        const metadataResult = await saveSubmissionMetadata(client, {
           uploader_email: email,
           title,
           caption,
@@ -386,11 +396,10 @@
           original_filename: file.name,
           file_type: file.type,
           file_size: file.size,
-          owner_delete_token: deleteToken,
           status: 'pending_review'
-        }).select('id,title,status').single();
+        }, deleteToken);
         if (metadataResult.error) throw metadataResult.error;
-        if (metadataResult.data?.id) {
+        if (metadataResult.data?.id && metadataResult.canSelfDelete) {
           saveUploadRecord({
             id: metadataResult.data.id,
             title: metadataResult.data.title || title,
@@ -400,7 +409,7 @@
           });
         }
         uploadForm.reset();
-        setUploadStatus('Upload received. Your video is pending moderation review.');
+        setUploadStatus(metadataResult.canSelfDelete ? 'Upload received. Your video is pending moderation review.' : 'Upload received. Your video is pending moderation review. Self-delete will work after the owner_delete_token SQL is added.');
       } catch (error) {
         const message = String(error?.message || error || '');
         if (message.includes('413') || message.toLowerCase().includes('maximum size')) {

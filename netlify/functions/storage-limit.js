@@ -18,8 +18,11 @@ exports.handler = async () => {
   const bucket = await response.json();
   if (!response.ok) return json(response.status, { error: bucket?.message || "Could not read storage bucket." });
 
+  const rawLimit = bucket?.file_size_limit || bucket?.fileSizeLimit || bucket?.file_size_limit_bytes || null;
   return json(200, {
     bucket,
-    limitGb: bucket?.file_size_limit ? Number((bucket.file_size_limit / 1024 / 1024 / 1024).toFixed(2)) : null
+    rawLimit,
+    limitMb: rawLimit ? Number((rawLimit / 1024 / 1024).toFixed(2)) : null,
+    limitGb: rawLimit ? Number((rawLimit / 1024 / 1024 / 1024).toFixed(2)) : null
   });
 };

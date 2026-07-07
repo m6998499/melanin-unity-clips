@@ -141,7 +141,7 @@
   </section>
 
   <section class="page" id="upload"><p class="eyebrow">Creator submissions</p><h1>Upload vertical clips for moderation.</h1><p class="lead">Public video submissions are stored in Supabase and start as pending review. Nothing appears in the feed until an admin approves it.</p><div class="grid two"><div class="panel"><form class="grid" id="videoUploadForm"><label>Your email<input id="uploaderEmail" placeholder="you@example.com" type="email" required></label><label>Title<input id="uploadTitle" placeholder="Clip title" maxlength="120" required></label><label>Caption<textarea id="uploadCaption" placeholder="Short caption"></textarea></label><label>Category<select id="uploadCategory"><option>Education</option><option>Motivation</option><option>Lifestyle</option><option>Entrepreneurship</option><option>Culture</option><option>Entertainment</option><option>Wellness</option><option>Local Business</option><option>Community</option><option>Comedy</option><option>News Commentary</option><option>Creator Content</option></select></label><label>Vertical video file<input id="uploadFile" type="file" accept="video/mp4,video/quicktime,video/webm" required></label><p id="selectedFileInfo">No file selected.</p><button class="gold-btn" id="uploadSubmit" type="submit">Upload for review</button><p id="uploadStatus" role="status">Upload is ready once Supabase URL and anon key are configured.</p></form></div><div class="panel"><h2>Upload rules</h2><ul><li>Accepted types: MP4, MOV, and WebM.</li><li>Recommended format: 9:16 vertical, 720p or higher.</li><li>Current maximum size: 5 GB.</li><li>All public uploads default to pending_review.</li><li>Admins review, approve, reject, or remove videos in Supabase.</li></ul></div></div><div class="panel" style="margin-top:18px"><h2>My uploads</h2><p>Videos uploaded from this device can be deleted here.</p><div id="myUploadList" class="list"><p>No uploads saved on this device yet.</p></div></div></section>
-  <section class="page" id="admin"><p class="eyebrow">Moderation</p><h1>Admin review dashboard.</h1><p class="lead">Enter your admin PIN to load uploaded videos, then approve or reject them here.</p><div class="panel"><div class="grid two"><label>Admin PIN<input id="adminPin" type="password" placeholder="Set this in Netlify as ADMIN_PIN"></label><button class="gold-btn" id="loadSubmissions" type="button">Load pending videos</button></div><p id="adminStatus" role="status">Admin actions require Netlify Functions and private environment variables.</p></div><div class="panel" style="margin-top:18px"><div class="table-wrap"><table><thead><tr><th>Title</th><th>Email</th><th>Category</th><th>Status</th><th>Actions</th></tr></thead><tbody id="submissionRows"><tr><td colspan="5">No submissions loaded yet.</td></tr></tbody></table></div></div></section>
+  <section class="page" id="admin"><p class="eyebrow">Moderation</p><h1>Admin review dashboard.</h1><p class="lead">Enter your admin PIN to load uploaded videos, then approve or reject them here.</p><div class="panel"><div class="grid two"><label>Admin PIN<input id="adminPin" type="password" placeholder="Set this in Netlify as ADMIN_PIN"></label><button class="gold-btn" id="loadSubmissions" type="button">Load pending videos</button><button class="ghost-btn" id="fixStorageLimit" type="button">Set upload limit to 5 GB</button></div><p id="adminStatus" role="status">Admin actions require Netlify Functions and private environment variables.</p></div><div class="panel" style="margin-top:18px"><div class="table-wrap"><table><thead><tr><th>Title</th><th>Email</th><th>Category</th><th>Status</th><th>Actions</th></tr></thead><tbody id="submissionRows"><tr><td colspan="5">No submissions loaded yet.</td></tr></tbody></table></div></div></section>
   <section class="page" id="privacy"><p class="eyebrow">Legal</p><h1>Privacy Policy</h1><div class="rule"><h2>Information we collect</h2><p>Account details, uploaded videos, captions, reports, moderation decisions, support requests, device data, and analytics needed to operate the app.</p></div><div class="rule"><h2>Use and retention</h2><p>We use information to provide the feed, authenticate uploaders, review content, respond to reports, improve reliability, prevent abuse, and meet legal obligations. Deletion requests go to privacy@example.com.</p></div></section>
   <section class="page" id="terms"><p class="eyebrow">Legal</p><h1>Terms of Service</h1><div class="rule"><h2>User content</h2><p>You keep ownership of your videos while granting the app permission to host, display, distribute, and promote them in the service.</p></div><div class="rule"><h2>Moderation rights</h2><p>The app may reject, remove, restrict, or delete content and accounts to enforce terms, protect users, and satisfy legal or store requirements.</p></div></section>
   <section class="page" id="guidelines"><p class="eyebrow">Safety</p><h1>Community Guidelines</h1><ul class="list"><li>No harassment, bullying, threats, or targeted abuse.</li><li>No hate content, nudity, sexual content, graphic violence, scams, impersonation, copyright violations, or dangerous content.</li><li>Reports are reviewed by admins and may lead to removal or account action.</li></ul></section>
@@ -457,6 +457,23 @@
         setAdminStatus(error.message, true);
       }
     }
+    async function fixStorageLimit() {
+      const pin = document.getElementById('adminPin')?.value?.trim();
+      if (!pin) return setAdminStatus('Enter the admin PIN first.', true);
+      if (location.protocol === 'file:') return setAdminStatus('This only works on your live Netlify site.', true);
+      setAdminStatus('Setting Supabase Storage upload limit to 5 GB...');
+      try {
+        const response = await fetch('/.netlify/functions/set-storage-limit', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-admin-pin': pin }
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not update storage limit.');
+        setAdminStatus(`Storage limit is now ${data.limitGb || '?'} GB.`);
+      } catch (error) {
+        setAdminStatus(error.message, true);
+      }
+    }
     function setCommentStatus(message, isError = false) {
       const status = document.getElementById('commentStatus');
       if (!status) return;
@@ -537,6 +554,7 @@
       }
     }
     document.getElementById('loadSubmissions')?.addEventListener('click', loadSubmissions);
+    document.getElementById('fixStorageLimit')?.addEventListener('click', fixStorageLimit);
     renderMyUploads();
     window.addEventListener('hashchange', () => showPage(location.hash.replace('#','') || 'feed'));
     showPage(location.hash.replace('#','') || 'feed');

@@ -75,7 +75,7 @@ values (
   'clip-submissions',
   'clip-submissions',
   false,
-  1073741824,
+  5368709120,
   array['video/mp4', 'video/quicktime', 'video/webm']
 )
 on conflict (id) do update

@@ -79,6 +79,15 @@
     .rail { position:absolute; right:16px; bottom:36px; display:grid; gap:12px; }
     @media (min-width:560px) { .rail { right:calc(50% - 224px); } }
     .round { width:50px; height:50px; border-radius:50%; border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.58); color:white; font-size:20px; }
+    .comment-panel { position:fixed; left:50%; bottom:0; z-index:30; width:min(100vw, 480px); max-height:76vh; transform:translate(-50%, 110%); transition:transform .22s ease; border:1px solid rgba(255,255,255,.14); border-bottom:0; border-radius:8px 8px 0 0; background:rgba(5,5,5,.98); padding:18px; box-shadow:0 -24px 64px rgba(0,0,0,.58); }
+    .comment-panel.open { transform:translate(-50%, 0); }
+    .comment-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .comment-head h2 { margin:0; font-size:18px; }
+    .comment-list { display:grid; gap:10px; max-height:28vh; overflow:auto; margin:0 0 14px; padding:0; list-style:none; }
+    .comment-list li { border:1px solid rgba(255,255,255,.1); border-radius:8px; padding:10px 12px; background:rgba(255,255,255,.045); }
+    .comment-list strong { display:block; margin-bottom:4px; color:var(--gold); font-size:13px; }
+    .comment-form { display:grid; gap:10px; }
+    .danger-btn { border:1px solid rgba(194,41,46,.7); border-radius:8px; background:rgba(194,41,46,.14); color:#ffb4b4; padding:9px 11px; font-weight:800; }
     table { width:100%; border-collapse:collapse; min-width:760px; font-size:14px; }
     th { text-align:left; color:rgba(255,255,255,.48); text-transform:uppercase; letter-spacing:.15em; font-size:11px; }
     th,td { padding:14px 10px; border-bottom:1px solid rgba(255,255,255,.1); }
@@ -139,6 +148,20 @@
   <section class="page" id="support"><p class="eyebrow">Help</p><h1>Support</h1><div class="grid three"><div class="panel"><h2>Contact</h2><p>support@example.com for account, upload, moderation, and deletion requests.</p></div><div class="panel"><h2>Report content</h2><p>Use the report button on any clip. Reports enter the admin review queue.</p></div><div class="panel"><h2>Common help</h2><p>Login, uploader approval, rejected videos, privacy requests, and demo account support.</p></div></div></section>
   <section class="page" id="app-store-info"><p class="eyebrow">Internal</p><h1>App store submission hub</h1><div class="grid two"><div class="panel"><h2>Metadata</h2><p>Short description: A scroll-only video discovery app for creators, ideas, culture, lifestyle, and community-driven clips.</p><p>Apple keywords: short video, clips, creator, community, lifestyle, culture, motivation, education, wellness, local business.</p></div><div class="panel"><h2>Categories and rating</h2><p>Apple primary: Entertainment. Secondary: Lifestyle or Social Networking. Google Play primary: Entertainment. Age guidance: Teen/12+ because user-uploaded content and moderation are present.</p></div></div><div class="rule"><h2>Submission checklist</h2><ul class="list"><li>Apple: metadata, privacy labels, age rating, screenshots, demo account, support URL, privacy URL, signed iOS build.</li><li>Google: store listing, data safety form, content rating, screenshots, privacy URL, signed Android App Bundle.</li><li>Both: replace placeholder emails, connect production Supabase, verify account deletion, test moderation workflow.</li></ul></div></section>
 
+  <aside class="comment-panel" id="commentPanel" aria-hidden="true">
+    <div class="comment-head">
+      <h2 id="commentTitle">Comments</h2>
+      <button class="ghost-btn" type="button" onclick="closeComments()">Close</button>
+    </div>
+    <ul class="comment-list" id="commentList"><li>Choose a published upload to view comments.</li></ul>
+    <form class="comment-form" id="commentForm">
+      <label>Name<input id="commentName" maxlength="40" placeholder="Guest"></label>
+      <label>Comment<textarea id="commentBody" maxlength="500" placeholder="Add a respectful comment"></textarea></label>
+      <button class="gold-btn" type="submit">Post comment</button>
+      <p id="commentStatus" role="status"></p>
+    </form>
+  </aside>
+
   <script>
     const drawer = document.getElementById('drawer');
     const feed = document.getElementById('manualFeed');
@@ -147,6 +170,7 @@
     let activeClip = 0;
     let touchStartY = 0;
     let gestureLocked = false;
+    let activeCommentSubmissionId = '';
     function toggleNav(){ drawer.classList.toggle('open'); document.querySelector('.nav-toggle').classList.toggle('open', drawer.classList.contains('open')); }
     function showPage(id){ document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === id)); document.querySelectorAll('.drawer a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#'+id)); drawer.classList.remove('open'); document.querySelector('.nav-toggle').classList.remove('open'); if(id === 'feed') setTimeout(() => goToClip(activeClip, true), 80); else videos.forEach(v => v.pause()); }
     function toggleMute(){ const muted = !videos[0].muted; videos.forEach(v => v.muted = muted); document.querySelectorAll('.rail .round:first-child').forEach(b => b.textContent = muted ? 'Ã°Å¸â€â€¡' : 'Ã°Å¸â€Å '); }
@@ -191,7 +215,7 @@
               <p>${escapeHtml(item.caption)}</p>
               <p>Published clip</p>
             </div>
-            <div class="rail"><button class="round" onclick="toggleMute()" aria-label="Mute">M</button><button class="round" onclick="shareClip()" aria-label="Share">S</button><button class="round" onclick="alert('Report saved for moderation review.')" aria-label="Report">!</button></div>
+            <div class="rail"><button class="round" onclick="toggleMute()" aria-label="Mute">M</button><button class="round" onclick="openComments('${escapeHtml(item.id)}')" aria-label="Comments">C</button><button class="round" onclick="shareClip()" aria-label="Share">S</button><button class="round" onclick="alert('Report saved for moderation review.')" aria-label="Report">!</button></div>
           </article>
         `).join(''));
         refreshFeedItems();
@@ -308,7 +332,7 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Could not load submissions.');
         const rows = document.getElementById('submissionRows');
-        rows.innerHTML = data.submissions.length ? data.submissions.map(item => `<tr><td>${item.title}</td><td>${item.uploader_email}</td><td>${item.category}</td><td>${item.status}</td><td><button class="ghost-btn" onclick="moderateSubmission('${item.id}','published')">Approve</button> <button class="ghost-btn" onclick="moderateSubmission('${item.id}','rejected')">Reject</button></td></tr>`).join('') : '<tr><td colspan="5">No submissions yet.</td></tr>';
+        rows.innerHTML = data.submissions.length ? data.submissions.map(item => `<tr><td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.uploader_email)}</td><td>${escapeHtml(item.category)}</td><td>${escapeHtml(item.status)}</td><td><button class="ghost-btn" onclick="moderateSubmission('${item.id}','published')">Approve</button> <button class="ghost-btn" onclick="moderateSubmission('${item.id}','rejected')">Reject</button> <button class="danger-btn" onclick="moderateSubmission('${item.id}','deleted')">Delete</button></td></tr>`).join('') : '<tr><td colspan="5">No submissions yet.</td></tr>';
         setAdminStatus('Submissions loaded.');
       } catch (error) {
         setAdminStatus(error.message, true);
@@ -320,6 +344,7 @@
       if (location.protocol === 'file:') {
         return setAdminStatus('Admin approval only works on your live Netlify site, not this local file preview. Open the Netlify URL, then use this same PIN there.', true);
       }
+      if (status === 'deleted' && !confirm('Delete this video from the admin list and storage? This cannot be undone.')) return;
       setAdminStatus(`Saving ${status}...`);
       try {
         const response = await fetch('/.netlify/functions/moderate-submission', {
@@ -334,6 +359,65 @@
         setAdminStatus(error.message, true);
       }
     }
+    function setCommentStatus(message, isError = false) {
+      const status = document.getElementById('commentStatus');
+      if (!status) return;
+      status.textContent = message;
+      status.style.color = isError ? '#ffb4b4' : 'rgba(255,255,255,.72)';
+    }
+    function openComments(submissionId) {
+      activeCommentSubmissionId = submissionId;
+      document.getElementById('commentTitle').textContent = 'Comments';
+      document.getElementById('commentPanel').classList.add('open');
+      document.getElementById('commentPanel').setAttribute('aria-hidden', 'false');
+      loadComments();
+    }
+    function closeComments() {
+      document.getElementById('commentPanel').classList.remove('open');
+      document.getElementById('commentPanel').setAttribute('aria-hidden', 'true');
+      activeCommentSubmissionId = '';
+      setCommentStatus('');
+    }
+    async function loadComments() {
+      const list = document.getElementById('commentList');
+      if (!activeCommentSubmissionId) return;
+      if (location.protocol === 'file:') {
+        list.innerHTML = '<li>Comments work on the live Netlify site after deployment.</li>';
+        return;
+      }
+      list.innerHTML = '<li>Loading comments...</li>';
+      try {
+        const response = await fetch(`/.netlify/functions/comments?submission_id=${encodeURIComponent(activeCommentSubmissionId)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not load comments.');
+        list.innerHTML = data.comments.length ? data.comments.map(comment => `<li><strong>${escapeHtml(comment.author_name)}</strong>${escapeHtml(comment.body)}</li>`).join('') : '<li>No comments yet.</li>';
+      } catch (error) {
+        list.innerHTML = `<li>${escapeHtml(error.message)}</li>`;
+      }
+    }
+    document.getElementById('commentForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!activeCommentSubmissionId) return;
+      if (location.protocol === 'file:') return setCommentStatus('Comments work on the live Netlify site after deployment.', true);
+      const authorName = document.getElementById('commentName')?.value?.trim() || 'Guest';
+      const body = document.getElementById('commentBody')?.value?.trim();
+      if (!body) return setCommentStatus('Write a comment first.', true);
+      setCommentStatus('Posting comment...');
+      try {
+        const response = await fetch('/.netlify/functions/comments', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ submission_id: activeCommentSubmissionId, author_name: authorName, body })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not post comment.');
+        document.getElementById('commentBody').value = '';
+        setCommentStatus('Comment posted.');
+        await loadComments();
+      } catch (error) {
+        setCommentStatus(error.message, true);
+      }
+    });
     document.getElementById('loadSubmissions')?.addEventListener('click', loadSubmissions);
     window.addEventListener('hashchange', () => showPage(location.hash.replace('#','') || 'feed'));
     showPage(location.hash.replace('#','') || 'feed');

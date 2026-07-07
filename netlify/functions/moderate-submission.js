@@ -4,7 +4,7 @@ exports.handler = async (event) => {
   }
 
   const { id, status } = JSON.parse(event.body || "{}");
-  if (!id || !["published", "rejected", "removed"].includes(status)) {
+  if (!id || !["published", "rejected", "removed", "deleted"].includes(status)) {
     return { statusCode: 400, body: JSON.stringify({ error: "Invalid moderation request." }) };
   }
 
@@ -14,11 +14,51 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: "Missing Supabase environment variables." }) };
   }
 
+  const baseHeaders = {
+    apikey: serviceKey,
+    authorization: `Bearer ${serviceKey}`
+  };
+
+  if (status === "deleted") {
+    const lookup = await fetch(`${url}/rest/v1/video_submissions?select=id,storage_bucket,storage_path&id=eq.${encodeURIComponent(id)}&limit=1`, {
+      headers: baseHeaders
+    });
+    const rows = await lookup.json();
+    if (!lookup.ok) {
+      return { statusCode: lookup.status, body: JSON.stringify({ error: rows?.message || "Could not find submission." }) };
+    }
+
+    const submission = rows[0];
+    if (!submission) {
+      return { statusCode: 404, body: JSON.stringify({ error: "Submission not found." }) };
+    }
+
+    if (submission.storage_path) {
+      await fetch(`${url}/storage/v1/object/${submission.storage_bucket || "clip-submissions"}`, {
+        method: "DELETE",
+        headers: {
+          ...baseHeaders,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ prefixes: [submission.storage_path] })
+      });
+    }
+
+    const deleteResponse = await fetch(`${url}/rest/v1/video_submissions?id=eq.${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: {
+        ...baseHeaders,
+        prefer: "return=representation"
+      }
+    });
+    const deleted = await deleteResponse.json();
+    return { statusCode: deleteResponse.status, body: JSON.stringify({ result: deleted }) };
+  }
+
   const response = await fetch(`${url}/rest/v1/video_submissions?id=eq.${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`,
+      ...baseHeaders,
       "content-type": "application/json",
       prefer: "return=representation"
     },

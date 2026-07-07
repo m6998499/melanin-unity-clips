@@ -9,6 +9,7 @@
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/icon.svg">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4/dist/tus.min.js"></script>
   <script src="/supabase-config.js"></script>
   <title>Melanin Unity Clips Preview</title>
   <style>
@@ -245,6 +246,54 @@
     function cleanFileName(name) {
       return name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/-+/g, '-').slice(-90);
     }
+    function formatBytes(bytes) {
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let size = Number(bytes || 0);
+      let unit = 0;
+      while (size >= 1024 && unit < units.length - 1) {
+        size = size / 1024;
+        unit += 1;
+      }
+      return `${size.toFixed(unit ? 2 : 0)} ${units[unit]}`;
+    }
+    function getSupabaseProjectId(url) {
+      try { return new URL(url).hostname.split('.')[0]; } catch { return ''; }
+    }
+    function uploadWithTus({ file, path, bucket, config, onProgress }) {
+      if (!window.tus?.Upload) return Promise.reject(new Error('Large upload support did not load. Refresh and try again.'));
+      const projectId = getSupabaseProjectId(config.url);
+      if (!projectId) return Promise.reject(new Error('Supabase project URL is invalid.'));
+      return new Promise((resolve, reject) => {
+        const upload = new window.tus.Upload(file, {
+          endpoint: `https://${projectId}.storage.supabase.co/storage/v1/upload/resumable`,
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          chunkSize: 6 * 1024 * 1024,
+          uploadDataDuringCreation: true,
+          removeFingerprintOnSuccess: true,
+          headers: {
+            authorization: `Bearer ${config.anonKey}`,
+            apikey: config.anonKey,
+            'x-upsert': 'false'
+          },
+          metadata: {
+            bucketName: bucket,
+            objectName: path,
+            contentType: file.type || 'video/mp4',
+            cacheControl: '3600'
+          },
+          onProgress: (bytesUploaded, bytesTotal) => {
+            const percentage = bytesTotal ? Math.round((bytesUploaded / bytesTotal) * 100) : 0;
+            onProgress?.(percentage, bytesUploaded, bytesTotal);
+          },
+          onError: reject,
+          onSuccess: resolve
+        });
+        upload.findPreviousUploads().then((previousUploads) => {
+          if (previousUploads.length) upload.resumeFromPreviousUpload(previousUploads[0]);
+          upload.start();
+        }).catch(reject);
+      });
+    }
     function getSavedUploads() {
       try { return JSON.parse(localStorage.getItem('mucUploads') || '[]'); } catch { return []; }
     }
@@ -271,6 +320,10 @@
       status.style.color = isError ? '#ffb4b4' : 'rgba(255,255,255,.72)';
     }
     const uploadForm = document.getElementById('videoUploadForm');
+    document.getElementById('uploadFile')?.addEventListener('change', (event) => {
+      const file = event.target.files?.[0];
+      if (file) setUploadStatus(`Selected ${file.name} (${formatBytes(file.size)}).`);
+    });
     uploadForm?.addEventListener('submit', async (event) => {
       event.preventDefault();
       const config = window.MUC_SUPABASE || {};
@@ -298,22 +351,23 @@
         return;
       }
       if (file.size > maxBytes) {
-        setUploadStatus('This file is larger than 5 GB. Compress it and try again.', true);
+        setUploadStatus(`This file is ${formatBytes(file.size)}, which is larger than 5 GB. Compress it and try again.`, true);
         return;
       }
       const submitButton = document.getElementById('uploadSubmit');
       submitButton.disabled = true;
-      setUploadStatus('Uploading video to Supabase Storage...');
+      setUploadStatus(`Uploading ${formatBytes(file.size)} video to Supabase Storage...`);
       try {
         const client = window.supabase.createClient(config.url, config.anonKey);
         const bucket = config.bucket || 'clip-submissions';
         const path = `pending/${Date.now()}-${crypto.randomUUID()}-${cleanFileName(file.name)}`;
-        const storageResult = await client.storage.from(bucket).upload(path, file, {
-          cacheControl: '3600',
-          contentType: file.type,
-          upsert: false
+        await uploadWithTus({
+          file,
+          path,
+          bucket,
+          config,
+          onProgress: (percentage, uploaded, total) => setUploadStatus(`Uploading video... ${percentage}% (${formatBytes(uploaded)} of ${formatBytes(total)})`)
         });
-        if (storageResult.error) throw storageResult.error;
         setUploadStatus('Saving submission metadata...');
         const deleteToken = crypto.randomUUID();
         const metadataResult = await client.from('video_submissions').insert({

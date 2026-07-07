@@ -79,6 +79,8 @@
     .rail { position:absolute; right:16px; bottom:36px; display:grid; gap:12px; }
     @media (min-width:560px) { .rail { right:calc(50% - 224px); } }
     .round { width:50px; height:50px; border-radius:50%; border:1px solid rgba(255,255,255,.18); background:rgba(0,0,0,.58); color:white; font-size:20px; }
+    .empty-feed { min-height:100vh; display:grid; place-items:center; padding:24px; text-align:center; }
+    .empty-feed div { max-width:360px; }
     .comment-panel { position:fixed; left:50%; bottom:0; z-index:30; width:min(100vw, 480px); max-height:76vh; transform:translate(-50%, 110%); transition:transform .22s ease; border:1px solid rgba(255,255,255,.14); border-bottom:0; border-radius:8px 8px 0 0; background:rgba(5,5,5,.98); padding:18px; box-shadow:0 -24px 64px rgba(0,0,0,.58); }
     .comment-panel.open { transform:translate(-50%, 0); }
     .comment-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
@@ -133,9 +135,7 @@
 
   <section class="page active" id="feed" style="padding:0;max-width:none">
     <div class="feed" id="manualFeed" tabindex="0" aria-label="Manual clip feed">
-      <article class="clip"><img class="post-image" src="posts/values-driven-brand-loyalty.png" alt="Values-driven brand loyalty preview post"><div class="shade"></div><div class="caption"><span class="pill">Business</span><h2>Values-Driven Brand Loyalty</h2><p><b>@Unity Studio</b></p><p>Choosing brands with purpose, quality, and community impact.</p><p>12,841 views</p></div><div class="rail"><button class="round" onclick="toggleMute()" aria-label="Mute">M</button><button class="round" onclick="shareClip()" aria-label="Share">S</button><button class="round" onclick="alert('Report saved for moderation review.')" aria-label="Report">!</button></div></article>
-      <article class="clip"><img class="post-image" src="posts/digital-trendsetting-power.png" alt="Digital trendsetting power preview post"><div class="shade"></div><div class="caption"><span class="pill">Creator Economy</span><h2>Digital Trendsetting Power</h2><p><b>@City Clips</b></p><p>Creators shaping attention, influence, and culture in real time.</p><p>8,721 views</p></div><div class="rail"><button class="round" onclick="toggleMute()" aria-label="Mute">M</button><button class="round" onclick="shareClip()" aria-label="Share">S</button><button class="round" onclick="alert('Report saved for moderation review.')" aria-label="Report">!</button></div></article>
-      <article class="clip"><img class="post-image" src="posts/global-transfers.png" alt="Global transfers preview post"><div class="shade"></div><div class="caption"><span class="pill">Finance</span><h2>Global Transfers</h2><p><b>@Open Circle</b></p><p>Money movement, access, and digital tools for connected communities.</p><p>15,643 views</p></div><div class="rail"><button class="round" onclick="toggleMute()" aria-label="Mute">M</button><button class="round" onclick="shareClip()" aria-label="Share">S</button><button class="round" onclick="alert('Report saved for moderation review.')" aria-label="Report">!</button></div></article>
+      <div class="empty-feed" id="emptyFeed"><div><h2>Loading community clips</h2><p>Approved uploads will appear here.</p></div></div>
     </div>
   </section>
 
@@ -178,8 +178,10 @@
     function refreshFeedItems() {
       clips = [...document.querySelectorAll('.clip')];
       videos = [...document.querySelectorAll('video')];
+      document.getElementById('emptyFeed')?.toggleAttribute('hidden', clips.length > 0);
     }
     function goToClip(index, instant = false){
+      if (!clips.length) return;
       activeClip = Math.max(0, Math.min(clips.length - 1, index));
       clips[activeClip].scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'start' });
       videos.forEach((v, i) => { if(i === activeClip) v.play().catch(()=>{}); else v.pause(); });
@@ -204,6 +206,7 @@
         const existingIds = new Set([...document.querySelectorAll('[data-submission-id]')].map(el => el.dataset.submissionId));
         const newClips = data.clips.filter(item => item.id && !existingIds.has(item.id));
         if (!newClips.length) return;
+        document.getElementById('emptyFeed')?.remove();
         feed.insertAdjacentHTML('beforeend', newClips.map(item => `
           <article class="clip" data-submission-id="${escapeHtml(item.id)}">
             <video src="${escapeHtml(item.videoUrl)}" playsinline controls preload="metadata"></video>

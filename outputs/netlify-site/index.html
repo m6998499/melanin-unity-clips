@@ -365,7 +365,7 @@
       setUploadStatus(`Uploading ${formatBytes(file.size)} video to Supabase Storage...`);
       try {
         const client = window.supabase.createClient(config.url, config.anonKey);
-        const bucket = config.bucket || 'clip-submissions';
+        const bucket = config.bucket || 'clip-submissions-v2';
         const path = `pending/${Date.now()}-${crypto.randomUUID()}-${cleanFileName(file.name)}`;
         await uploadWithTus({
           file,
@@ -404,7 +404,7 @@
       } catch (error) {
         const message = String(error?.message || error || '');
         if (message.includes('413') || message.toLowerCase().includes('maximum size')) {
-          setUploadStatus(`Supabase rejected this ${formatBytes(file.size)} file as too large. In Supabase, run the 5 GB bucket SQL and verify limit_gb shows 5.00 for clip-submissions.`, true);
+          setUploadStatus(`Supabase rejected this ${formatBytes(file.size)} file as too large. Run the clip-submissions-v2 bucket SQL, then verify the new bucket shows a 5 GB limit.`, true);
         } else {
           setUploadStatus(message || 'Upload failed. Check Supabase policies and try again.', true);
         }

@@ -15,5 +15,5 @@ const mucAnonKeyParts = [
 window.MUC_SUPABASE = {
   url: `https://${mucProjectRef}.supabase.co`,
   anonKey: mucAnonKeyParts.join(""),
-  bucket: "clip-submissions"
+  bucket: "clip-submissions-v2"
 };

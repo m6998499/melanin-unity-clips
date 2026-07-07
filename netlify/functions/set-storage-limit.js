@@ -22,11 +22,11 @@ exports.handler = async (event) => {
     "content-type": "application/json"
   };
 
-  const currentResponse = await fetch(`${url}/storage/v1/bucket/clip-submissions`, { headers });
+  const currentResponse = await fetch(`${url}/storage/v1/bucket/clip-submissions-v2`, { headers });
   const current = await currentResponse.json();
   if (!currentResponse.ok) return json(currentResponse.status, { error: current?.message || "Could not read storage bucket." });
 
-  const updateResponse = await fetch(`${url}/storage/v1/bucket/clip-submissions`, {
+  const updateResponse = await fetch(`${url}/storage/v1/bucket/clip-submissions-v2`, {
     method: "PUT",
     headers,
     body: JSON.stringify({
@@ -38,7 +38,7 @@ exports.handler = async (event) => {
   const updated = await updateResponse.json();
   if (!updateResponse.ok) return json(updateResponse.status, { error: updated?.message || "Could not update storage bucket.", details: updated });
 
-  const verifyResponse = await fetch(`${url}/storage/v1/bucket/clip-submissions`, { headers });
+  const verifyResponse = await fetch(`${url}/storage/v1/bucket/clip-submissions-v2`, { headers });
   const verify = await verifyResponse.json();
   const rawLimit = verify?.file_size_limit || verify?.fileSizeLimit || null;
 

@@ -9,7 +9,7 @@ exports.handler = async () => {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) return json(500, { error: "Missing Supabase environment variables." });
 
-  const response = await fetch(`${url}/storage/v1/bucket/clip-submissions`, {
+  const response = await fetch(`${url}/storage/v1/bucket/clip-submissions-v2`, {
     headers: {
       apikey: serviceKey,
       authorization: `Bearer ${serviceKey}`

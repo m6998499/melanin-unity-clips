@@ -303,15 +303,15 @@
       localStorage.setItem('mucUploads', JSON.stringify(uploads.slice(0, 40)));
       renderMyUploads();
     }
-    async function saveSubmissionMetadata(client, payload, deleteToken) {
-      const withDeleteToken = await client.from('video_submissions').insert({
-        ...payload,
-        owner_delete_token: deleteToken
-      }).select('id,title,status').single();
-      const message = String(withDeleteToken.error?.message || '');
-      if (!withDeleteToken.error || !message.includes('owner_delete_token')) return { ...withDeleteToken, canSelfDelete: true };
-      const withoutDeleteToken = await client.from('video_submissions').insert(payload).select('id,title,status').single();
-      return { ...withoutDeleteToken, canSelfDelete: false };
+    async function saveSubmissionMetadata(payload, deleteToken) {
+      const response = await fetch('/.netlify/functions/create-submission', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...payload, owner_delete_token: deleteToken })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not save submission.');
+      return { data: data.submission, canSelfDelete: data.canSelfDelete };
     }
     function removeUploadRecord(id) {
       localStorage.setItem('mucUploads', JSON.stringify(getSavedUploads().filter(item => item.id !== id)));
@@ -386,7 +386,7 @@
         });
         setUploadStatus('Saving submission metadata...');
         const deleteToken = crypto.randomUUID();
-        const metadataResult = await saveSubmissionMetadata(client, {
+        const metadataResult = await saveSubmissionMetadata({
           uploader_email: email,
           title,
           caption,
@@ -398,7 +398,6 @@
           file_size: file.size,
           status: 'pending_review'
         }, deleteToken);
-        if (metadataResult.error) throw metadataResult.error;
         if (metadataResult.data?.id && metadataResult.canSelfDelete) {
           saveUploadRecord({
             id: metadataResult.data.id,

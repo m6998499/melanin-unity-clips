@@ -375,7 +375,7 @@
       setUploadStatus(`Uploading ${formatBytes(file.size)} video to Supabase Storage...`);
       try {
         const client = window.supabase.createClient(config.url, config.anonKey);
-        const bucket = config.bucket || 'clip-submissions-v2';
+        const bucket = config.bucket || 'clip-submissions';
         const path = `pending/${Date.now()}-${crypto.randomUUID()}-${cleanFileName(file.name)}`;
         await uploadWithTus({
           file,

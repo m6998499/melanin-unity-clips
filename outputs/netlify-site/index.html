@@ -377,13 +377,12 @@
         const client = window.supabase.createClient(config.url, config.anonKey);
         const bucket = config.bucket || 'clip-submissions';
         const path = `pending/${Date.now()}-${crypto.randomUUID()}-${cleanFileName(file.name)}`;
-        await uploadWithTus({
-          file,
-          path,
-          bucket,
-          config,
-          onProgress: (percentage, uploaded, total) => setUploadStatus(`Uploading video... ${percentage}% (${formatBytes(uploaded)} of ${formatBytes(total)})`)
+        const storageResult = await client.storage.from(bucket).upload(path, file, {
+          cacheControl: '3600',
+          contentType: file.type,
+          upsert: false
         });
+        if (storageResult.error) throw storageResult.error;
         setUploadStatus('Saving submission metadata...');
         const deleteToken = crypto.randomUUID();
         const metadataResult = await saveSubmissionMetadata({

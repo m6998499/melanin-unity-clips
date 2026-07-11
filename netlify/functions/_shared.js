@@ -2,7 +2,10 @@ const crypto = require("node:crypto");
 
 const JSON_HEADERS = {
   "content-type": "application/json",
-  "cache-control": "no-store"
+  "cache-control": "no-store",
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-headers": "content-type, x-admin-pin, apikey, authorization"
 };
 
 const failedPinAttempts = new Map();
@@ -33,6 +36,14 @@ function normalizeError(payload) {
 
 function methodNotAllowed() {
   return json(405, { code: "METHOD_NOT_ALLOWED", message: "Method not allowed." });
+}
+
+function corsPreflight() {
+  return {
+    statusCode: 204,
+    headers: JSON_HEADERS,
+    body: ""
+  };
 }
 
 function parseJsonBody(event) {
@@ -174,6 +185,7 @@ function verifyAdmin(event) {
 
 module.exports = {
   json,
+  corsPreflight,
   methodNotAllowed,
   parseJsonBody,
   requireSupabaseEnv,

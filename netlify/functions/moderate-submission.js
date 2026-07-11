@@ -1,4 +1,5 @@
 const {
+  corsPreflight,
   json,
   methodNotAllowed,
   parseJsonBody,
@@ -9,6 +10,7 @@ const {
 } = require("./_shared");
 
 exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") return corsPreflight();
   if (event.httpMethod !== "POST") return methodNotAllowed();
 
   const adminError = verifyAdmin(event);

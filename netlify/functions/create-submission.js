@@ -1,4 +1,5 @@
 const {
+  corsPreflight,
   json,
   methodNotAllowed,
   parseJsonBody,
@@ -33,6 +34,7 @@ async function insertSubmission(url, serviceKey, payload, includeDeleteToken) {
 }
 
 exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") return corsPreflight();
   if (event.httpMethod !== "POST") return methodNotAllowed();
 
   const env = requireSupabaseEnv();

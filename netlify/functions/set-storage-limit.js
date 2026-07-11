@@ -1,6 +1,7 @@
 const FIVE_GB = 5 * 1024 * 1024 * 1024;
 
 const {
+  corsPreflight,
   json,
   methodNotAllowed,
   requireSupabaseEnv,
@@ -10,6 +11,7 @@ const {
 } = require("./_shared");
 
 exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") return corsPreflight();
   if (event.httpMethod !== "POST") return methodNotAllowed();
   const adminError = verifyAdmin(event);
   if (adminError) return adminError;

@@ -1,6 +1,7 @@
-const { json, requireSupabaseEnv, safeJsonResponse, supabaseHeaders, verifyAdmin } = require("./_shared");
+const { corsPreflight, json, requireSupabaseEnv, safeJsonResponse, supabaseHeaders, verifyAdmin } = require("./_shared");
 
 exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") return corsPreflight();
   const adminError = verifyAdmin(event);
   if (adminError) return adminError;
 

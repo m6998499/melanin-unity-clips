@@ -1,6 +1,7 @@
-const { json, requireSupabaseEnv, safeJsonResponse, supabaseHeaders } = require("./_shared");
+const { corsPreflight, json, requireSupabaseEnv, safeJsonResponse, supabaseHeaders } = require("./_shared");
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") return corsPreflight();
   const env = requireSupabaseEnv();
   if (env.error) return env.error;
   const { url, serviceKey } = env;

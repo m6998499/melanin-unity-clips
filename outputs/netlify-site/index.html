@@ -207,9 +207,12 @@
     };
     document.getElementById('uploadLimitLabel').textContent = formatBytes(APP_MAX_UPLOAD_BYTES);
     async function fetchJson(url, options = {}) {
+      const requestUrl = url.startsWith('/.netlify/functions/')
+        ? `${String(window.MUC_SUPABASE?.apiBaseUrl || location.origin).replace(/\/+$/, '')}${url}`
+        : url;
       let response;
       try {
-        response = await fetch(url, options);
+        response = await fetch(requestUrl, options);
       } catch {
         throw new Error('Network connection failed. Check your connection and try again.');
       }

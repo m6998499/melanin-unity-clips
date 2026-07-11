@@ -1,4 +1,4 @@
-const CACHE_NAME = "melanin-unity-clips-netlify-v12";
+const CACHE_NAME = "melanin-unity-clips-netlify-v13";
 const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icons/icon.svg"];
 
 self.addEventListener("install", (event) => {

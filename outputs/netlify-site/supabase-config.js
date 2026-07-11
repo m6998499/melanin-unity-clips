@@ -16,5 +16,6 @@ window.MUC_SUPABASE = {
   url: `https://${mucProjectRef}.supabase.co`,
   anonKey: mucAnonKeyParts.join(""),
   bucket: "clip-submissions",
+  apiBaseUrl: "https://melaninunityclips.com",
   maxUploadBytes: 50 * 1024 * 1024
 };

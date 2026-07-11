@@ -1,22 +1,22 @@
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: { "content-type": "application/json", "cache-control": "no-store" },
-  body: JSON.stringify(body)
-});
+const {
+  json,
+  methodNotAllowed,
+  parseJsonBody,
+  requireSupabaseEnv,
+  safeJsonResponse,
+  supabaseHeaders
+} = require("./_shared");
 
 const cleanText = (value, maxLength) => String(value || "").trim().slice(0, maxLength);
 const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || "");
 
 exports.handler = async (event) => {
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    return json(500, { error: "Missing Supabase environment variables." });
-  }
+  const env = requireSupabaseEnv();
+  if (env.error) return env.error;
+  const { url, serviceKey } = env;
 
   const headers = {
-    apikey: serviceKey,
-    authorization: `Bearer ${serviceKey}`,
+    ...supabaseHeaders(serviceKey),
     "content-type": "application/json"
   };
 
@@ -27,13 +27,15 @@ exports.handler = async (event) => {
     const response = await fetch(`${url}/rest/v1/video_comments?select=id,author_name,body,created_at&submission_id=eq.${encodeURIComponent(submissionId)}&status=eq.visible&order=created_at.asc&limit=100`, {
       headers
     });
-    const comments = await response.json();
-    if (!response.ok) return json(response.status, { error: comments?.message || "Could not load comments." });
-    return json(200, { comments });
+    const parsed = await safeJsonResponse(response, "Supabase did not return JSON while loading comments.");
+    if (!response.ok) return json(response.status, { code: parsed.error?.code || "COMMENTS_LOAD_FAILED", message: parsed.data?.message || parsed.error?.message || "Could not load comments." });
+    return json(200, { comments: parsed.data || [] });
   }
 
   if (event.httpMethod === "POST") {
-    const payload = JSON.parse(event.body || "{}");
+    const parsedBody = parseJsonBody(event);
+    if (parsedBody.error) return parsedBody.error;
+    const payload = parsedBody.payload;
     const submissionId = payload.submission_id;
     const authorName = cleanText(payload.author_name, 40) || "Guest";
     const body = cleanText(payload.body, 500);
@@ -53,10 +55,10 @@ exports.handler = async (event) => {
         status: "visible"
       })
     });
-    const result = await response.json();
-    if (!response.ok) return json(response.status, { error: result?.message || "Could not save comment." });
-    return json(200, { comment: result[0] });
+    const parsed = await safeJsonResponse(response, "Supabase did not return JSON while saving the comment.");
+    if (!response.ok) return json(response.status, { code: parsed.error?.code || "COMMENT_SAVE_FAILED", message: parsed.data?.message || parsed.error?.message || "Could not save comment." });
+    return json(200, { comment: parsed.data?.[0] });
   }
 
-  return json(405, { error: "Method not allowed." });
+  return methodNotAllowed();
 };

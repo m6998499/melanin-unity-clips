@@ -1,25 +1,26 @@
+const { json, requireSupabaseEnv, safeJsonResponse, supabaseHeaders } = require("./_shared");
+
 exports.handler = async () => {
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    return { statusCode: 500, body: JSON.stringify({ error: "Missing Supabase environment variables." }) };
-  }
+  const env = requireSupabaseEnv();
+  if (env.error) return env.error;
+  const { url, serviceKey } = env;
 
   const submissionsResponse = await fetch(
     `${url}/rest/v1/video_submissions?select=id,title,caption,category,storage_bucket,storage_path,created_at&status=eq.published&order=reviewed_at.desc&limit=25`,
     {
-      headers: {
-        apikey: serviceKey,
-        authorization: `Bearer ${serviceKey}`
-      }
+      headers: supabaseHeaders(serviceKey)
     }
   );
 
+  const parsedSubmissions = await safeJsonResponse(submissionsResponse, "Supabase did not return JSON while loading the feed.");
   if (!submissionsResponse.ok) {
-    return { statusCode: submissionsResponse.status, body: await submissionsResponse.text() };
+    return json(submissionsResponse.status, {
+      code: parsedSubmissions.error?.code || "FEED_LOAD_FAILED",
+      message: parsedSubmissions.data?.message || parsedSubmissions.error?.message || "Could not load the video feed."
+    });
   }
 
-  const submissions = await submissionsResponse.json();
+  const submissions = parsedSubmissions.data || [];
   const clips = [];
 
   for (const item of submissions) {
@@ -28,27 +29,23 @@ exports.handler = async () => {
     const signedResponse = await fetch(`${url}/storage/v1/object/sign/${bucket}/${objectPath}`, {
       method: "POST",
       headers: {
-        apikey: serviceKey,
-        authorization: `Bearer ${serviceKey}`,
+        ...supabaseHeaders(serviceKey),
         "content-type": "application/json"
       },
       body: JSON.stringify({ expiresIn: 3600 })
     });
 
     if (!signedResponse.ok) continue;
-    const signed = await signedResponse.json();
+    const parsedSigned = await safeJsonResponse(signedResponse, "Supabase did not return JSON while signing a video URL.");
+    if (!parsedSigned.data?.signedURL) continue;
     clips.push({
       id: item.id,
       title: item.title || "Community Clip",
       caption: item.caption || "",
       category: item.category || "Community",
-      videoUrl: `${url}/storage/v1${signed.signedURL}`
+      videoUrl: `${url}/storage/v1${parsedSigned.data.signedURL}`
     });
   }
 
-  return {
-    statusCode: 200,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-    body: JSON.stringify({ clips })
-  };
+  return json(200, { clips });
 };

@@ -1,22 +1,17 @@
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: { "content-type": "application/json", "cache-control": "no-store" },
-  body: JSON.stringify(body)
-});
+const { json, requireSupabaseEnv, safeJsonResponse, supabaseHeaders } = require("./_shared");
 
 exports.handler = async () => {
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return json(500, { error: "Missing Supabase environment variables." });
+  const env = requireSupabaseEnv();
+  if (env.error) return env.error;
+  const { url, serviceKey } = env;
 
-  const response = await fetch(`${url}/storage/v1/bucket/clip-submissions-v2`, {
-    headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`
-    }
+  const bucketName = process.env.SUPABASE_STORAGE_BUCKET || "clip-submissions";
+  const response = await fetch(`${url}/storage/v1/bucket/${bucketName}`, {
+    headers: supabaseHeaders(serviceKey)
   });
-  const bucket = await response.json();
-  if (!response.ok) return json(response.status, { error: bucket?.message || "Could not read storage bucket." });
+  const parsed = await safeJsonResponse(response, "Supabase did not return JSON while checking the storage bucket.");
+  const bucket = parsed.data;
+  if (!response.ok) return json(response.status, { code: parsed.error?.code || "BUCKET_READ_FAILED", message: bucket?.message || parsed.error?.message || "Could not read storage bucket." });
 
   const rawLimit = bucket?.file_size_limit || bucket?.fileSizeLimit || bucket?.file_size_limit_bytes || null;
   return json(200, {

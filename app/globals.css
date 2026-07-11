@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  background: #050505;
+  color: #fffaf0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  background: #050505;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.snap-feed {
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.snap-video {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.video-stage-media {
+  height: min(100vh, calc(100vw * 16 / 9));
+  width: min(100vw, calc(100vh * 9 / 16), 480px);
+}

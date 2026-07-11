@@ -1,36 +1,45 @@
+const {
+  json,
+  methodNotAllowed,
+  parseJsonBody,
+  requireSupabaseEnv,
+  safeJsonResponse,
+  supabaseHeaders,
+  verifyAdmin
+} = require("./_shared");
+
 exports.handler = async (event) => {
-  if (event.headers["x-admin-pin"] !== process.env.ADMIN_PIN) {
-    return { statusCode: 401, body: JSON.stringify({ error: "Invalid admin PIN." }) };
-  }
+  if (event.httpMethod !== "POST") return methodNotAllowed();
 
-  const { id, status } = JSON.parse(event.body || "{}");
+  const adminError = verifyAdmin(event);
+  if (adminError) return adminError;
+
+  const parsedBody = parseJsonBody(event);
+  if (parsedBody.error) return parsedBody.error;
+  const { id, status } = parsedBody.payload;
   if (!id || !["published", "rejected", "removed", "deleted"].includes(status)) {
-    return { statusCode: 400, body: JSON.stringify({ error: "Invalid moderation request." }) };
+    return json(400, { code: "INVALID_MODERATION_REQUEST", message: "Invalid moderation request." });
   }
 
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    return { statusCode: 500, body: JSON.stringify({ error: "Missing Supabase environment variables." }) };
-  }
+  const env = requireSupabaseEnv();
+  if (env.error) return env.error;
+  const { url, serviceKey } = env;
 
-  const baseHeaders = {
-    apikey: serviceKey,
-    authorization: `Bearer ${serviceKey}`
-  };
+  const baseHeaders = supabaseHeaders(serviceKey);
 
   if (status === "deleted") {
     const lookup = await fetch(`${url}/rest/v1/video_submissions?select=id,storage_bucket,storage_path&id=eq.${encodeURIComponent(id)}&limit=1`, {
       headers: baseHeaders
     });
-    const rows = await lookup.json();
+    const parsedLookup = await safeJsonResponse(lookup, "Supabase did not return JSON while finding the submission.");
+    const rows = parsedLookup.data || [];
     if (!lookup.ok) {
-      return { statusCode: lookup.status, body: JSON.stringify({ error: rows?.message || "Could not find submission." }) };
+      return json(lookup.status, { code: parsedLookup.error?.code || "SUBMISSION_LOOKUP_FAILED", message: rows?.message || parsedLookup.error?.message || "Could not find submission." });
     }
 
     const submission = rows[0];
     if (!submission) {
-      return { statusCode: 404, body: JSON.stringify({ error: "Submission not found." }) };
+      return json(404, { code: "SUBMISSION_NOT_FOUND", message: "Submission not found." });
     }
 
     if (submission.storage_path) {
@@ -51,8 +60,11 @@ exports.handler = async (event) => {
         prefer: "return=representation"
       }
     });
-    const deleted = await deleteResponse.json();
-    return { statusCode: deleteResponse.status, body: JSON.stringify({ result: deleted }) };
+    const parsedDeleted = await safeJsonResponse(deleteResponse, "Supabase did not return JSON while deleting the submission.");
+    if (!deleteResponse.ok) {
+      return json(deleteResponse.status, { code: parsedDeleted.error?.code || "SUBMISSION_DELETE_FAILED", message: parsedDeleted.data?.message || parsedDeleted.error?.message || "Could not delete submission." });
+    }
+    return json(200, { result: parsedDeleted.data || [] });
   }
 
   const response = await fetch(`${url}/rest/v1/video_submissions?id=eq.${encodeURIComponent(id)}`, {
@@ -64,6 +76,9 @@ exports.handler = async (event) => {
     },
     body: JSON.stringify({ status, reviewed_at: new Date().toISOString() })
   });
-  const result = await response.json();
-  return { statusCode: response.status, body: JSON.stringify({ result }) };
+  const parsed = await safeJsonResponse(response, "Supabase did not return JSON while moderating the submission.");
+  if (!response.ok) {
+    return json(response.status, { code: parsed.error?.code || "MODERATION_FAILED", message: parsed.data?.message || parsed.error?.message || "Moderation failed." });
+  }
+  return json(200, { result: parsed.data || [] });
 };

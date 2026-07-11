@@ -1,11 +1,17 @@
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: { "content-type": "application/json", "cache-control": "no-store" },
-  body: JSON.stringify(body)
-});
+const {
+  json,
+  methodNotAllowed,
+  parseJsonBody,
+  requireSupabaseEnv,
+  safeJsonResponse,
+  supabaseHeaders
+} = require("./_shared");
 
 const cleanText = (value, maxLength) => String(value || "").trim().slice(0, maxLength);
 const isEmail = (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value || "");
+const allowedBuckets = new Set(["clip-submissions"]);
+const allowedTypes = new Set(["video/mp4", "video/quicktime", "video/webm", "video/3gpp", "video/x-matroska"]);
+const maxUploadBytes = Number(process.env.MAX_UPLOAD_BYTES || 50 * 1024 * 1024);
 
 async function insertSubmission(url, serviceKey, payload, includeDeleteToken) {
   const body = { ...payload };
@@ -14,26 +20,28 @@ async function insertSubmission(url, serviceKey, payload, includeDeleteToken) {
   const response = await fetch(`${url}/rest/v1/video_submissions`, {
     method: "POST",
     headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`,
+      ...supabaseHeaders(serviceKey),
       "content-type": "application/json",
       prefer: "return=representation"
     },
     body: JSON.stringify(body)
   });
 
-  const result = await response.json();
+  const parsed = await safeJsonResponse(response, "Supabase did not return JSON while saving the upload.");
+  const result = parsed.data || parsed.error;
   return { response, result };
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed." });
+  if (event.httpMethod !== "POST") return methodNotAllowed();
 
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return json(500, { error: "Missing Supabase environment variables." });
+  const env = requireSupabaseEnv();
+  if (env.error) return env.error;
+  const { url, serviceKey } = env;
 
-  const payload = JSON.parse(event.body || "{}");
+  const parsedBody = parseJsonBody(event);
+  if (parsedBody.error) return parsedBody.error;
+  const payload = parsedBody.payload;
   const uploaderEmail = cleanText(payload.uploader_email, 160);
   const title = cleanText(payload.title, 120);
   const caption = cleanText(payload.caption, 1000);
@@ -45,10 +53,13 @@ exports.handler = async (event) => {
   const fileSize = Number(payload.file_size || 0);
   const ownerDeleteToken = cleanText(payload.owner_delete_token, 80);
 
-  if (!isEmail(uploaderEmail)) return json(400, { error: "Enter a valid email address." });
-  if (title.length < 2) return json(400, { error: "Enter a title with at least 2 characters." });
-  if (!storagePath || !storagePath.startsWith("pending/")) return json(400, { error: "Invalid upload path." });
-  if (!["clip-submissions", "clip-submissions-v2"].includes(storageBucket)) return json(400, { error: "Invalid upload bucket." });
+  if (!isEmail(uploaderEmail)) return json(400, { code: "INVALID_EMAIL", message: "Enter a valid email address." });
+  if (title.length < 2) return json(400, { code: "INVALID_TITLE", message: "Enter a title with at least 2 characters." });
+  if (!storagePath || !storagePath.startsWith("pending/")) return json(400, { code: "INVALID_STORAGE_PATH", message: "Invalid upload path." });
+  if (!allowedBuckets.has(storageBucket)) return json(400, { code: "INVALID_BUCKET", message: "Invalid upload bucket." });
+  if (!allowedTypes.has(fileType)) return json(400, { code: "UNSUPPORTED_VIDEO_TYPE", message: "Use MP4, MOV, WebM, 3GP, or compatible MKV video." });
+  if (!Number.isFinite(fileSize) || fileSize <= 0) return json(400, { code: "INVALID_FILE_SIZE", message: "The uploaded file size is missing." });
+  if (fileSize > maxUploadBytes) return json(413, { code: "UPLOAD_TOO_LARGE", message: "The selected video exceeds the current upload limit." });
 
   const submission = {
     uploader_email: uploaderEmail,
@@ -72,6 +83,6 @@ exports.handler = async (event) => {
     canSelfDelete = false;
   }
 
-  if (!response.ok) return json(response.status, { error: result?.message || "Could not save submission." });
+  if (!response.ok) return json(response.status, { code: result?.code || "SUBMISSION_SAVE_FAILED", message: result?.message || "Could not save submission." });
   return json(200, { submission: result[0], canSelfDelete });
 };

@@ -1,0 +1,74 @@
+name: Android AAB
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build-android-aab:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Verify static web assets
+        run: pnpm build:static
+
+      - name: Sync Capacitor Android project
+        run: pnpm cap sync android
+
+      - name: Decode signing keystore
+        if: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release-keystore.jks
+
+      - name: Configure signing properties
+        if: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 != '' }}
+        run: |
+          {
+            echo "MUC_RELEASE_STORE_FILE=release-keystore.jks"
+            echo "MUC_RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}"
+            echo "MUC_RELEASE_KEY_ALIAS=${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}"
+            echo "MUC_RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}"
+          } >> android/gradle.properties
+
+      - name: Build release app bundle
+        run: ./gradlew bundleRelease
+        working-directory: android
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: melanin-unity-clips-v3-1.0.1-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error

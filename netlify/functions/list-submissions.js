@@ -1,20 +1,23 @@
-exports.handler = async (event) => {
-  if (event.headers["x-admin-pin"] !== process.env.ADMIN_PIN) {
-    return { statusCode: 401, body: JSON.stringify({ error: "Invalid admin PIN." }) };
-  }
+const { json, requireSupabaseEnv, safeJsonResponse, supabaseHeaders, verifyAdmin } = require("./_shared");
 
-  const url = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    return { statusCode: 500, body: JSON.stringify({ error: "Missing Supabase environment variables." }) };
-  }
+exports.handler = async (event) => {
+  const adminError = verifyAdmin(event);
+  if (adminError) return adminError;
+
+  const env = requireSupabaseEnv();
+  if (env.error) return env.error;
+  const { url, serviceKey } = env;
 
   const response = await fetch(`${url}/rest/v1/video_submissions?select=*&order=created_at.desc`, {
-    headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`
-    }
+    headers: supabaseHeaders(serviceKey)
   });
-  const submissions = await response.json();
-  return { statusCode: response.status, body: JSON.stringify({ submissions }) };
+  const parsed = await safeJsonResponse(response, "Supabase did not return JSON while loading submissions.");
+  if (!response.ok) {
+    return json(response.status, {
+      code: parsed.error?.code || "SUBMISSIONS_LOAD_FAILED",
+      message: parsed.data?.message || parsed.error?.message || "Could not load submissions."
+    });
+  }
+
+  return json(200, { submissions: parsed.data || [] });
 };

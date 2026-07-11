@@ -9,7 +9,6 @@
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/icon.svg">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tus-js-client@4/dist/tus.min.js"></script>
   <script src="/supabase-config.js"></script>
   <title>Melanin Unity Clips Preview</title>
   <style>
@@ -140,7 +139,7 @@
     </div>
   </section>
 
-  <section class="page" id="upload"><p class="eyebrow">Creator submissions</p><h1>Upload vertical clips for moderation.</h1><p class="lead">Public video submissions are stored in Supabase and start as pending review. Nothing appears in the feed until an admin approves it.</p><div class="grid two"><div class="panel"><form class="grid" id="videoUploadForm"><label>Your email<input id="uploaderEmail" placeholder="you@example.com" type="email" required></label><label>Title<input id="uploadTitle" placeholder="Clip title" maxlength="120" required></label><label>Caption<textarea id="uploadCaption" placeholder="Short caption"></textarea></label><label>Category<select id="uploadCategory"><option>Education</option><option>Motivation</option><option>Lifestyle</option><option>Entrepreneurship</option><option>Culture</option><option>Entertainment</option><option>Wellness</option><option>Local Business</option><option>Community</option><option>Comedy</option><option>News Commentary</option><option>Creator Content</option></select></label><label>Vertical video file<input id="uploadFile" type="file" accept="video/mp4,video/quicktime,video/webm" required></label><p id="selectedFileInfo">No file selected.</p><button class="gold-btn" id="uploadSubmit" type="submit">Upload for review</button><p id="uploadStatus" role="status">Upload is ready once Supabase URL and anon key are configured.</p></form></div><div class="panel"><h2>Upload rules</h2><ul><li>Accepted types: MP4, MOV, and WebM.</li><li>Recommended format: 9:16 vertical, 720p or higher.</li><li>Current maximum size: 50 MB on the current Supabase plan.</li><li>All public uploads default to pending_review.</li><li>Admins review, approve, reject, or remove videos in Supabase.</li></ul></div></div><div class="panel" style="margin-top:18px"><h2>My uploads</h2><p>Videos uploaded from this device can be deleted here.</p><div id="myUploadList" class="list"><p>No uploads saved on this device yet.</p></div></div></section>
+  <section class="page" id="upload"><p class="eyebrow">Creator submissions</p><h1>Upload vertical clips for moderation.</h1><p class="lead">Public video submissions are stored in Supabase and start as pending review. Nothing appears in the feed until an admin approves it.</p><div class="grid two"><div class="panel"><form class="grid" id="videoUploadForm"><label>Your email<input id="uploaderEmail" placeholder="you@example.com" type="email" required></label><label>Title<input id="uploadTitle" placeholder="Clip title" maxlength="120" required></label><label>Caption<textarea id="uploadCaption" placeholder="Short caption"></textarea></label><label>Category<select id="uploadCategory"><option>Education</option><option>Motivation</option><option>Lifestyle</option><option>Entrepreneurship</option><option>Culture</option><option>Entertainment</option><option>Wellness</option><option>Local Business</option><option>Community</option><option>Comedy</option><option>News Commentary</option><option>Creator Content</option></select></label><label>Vertical video file<input id="uploadFile" type="file" accept="video/mp4,video/quicktime,video/webm,video/3gpp,video/x-matroska,.mp4,.mov,.webm,.3gp,.mkv" required></label><p id="selectedFileInfo">No file selected.</p><button class="gold-btn" id="uploadSubmit" type="submit">Upload for review</button><p id="uploadStatus" role="status">Upload is ready once Supabase URL and anon key are configured.</p></form></div><div class="panel"><h2>Upload rules</h2><ul><li>Accepted types: MP4, MOV, WebM, 3GP, and compatible MKV.</li><li>Recommended format: 9:16 vertical, 720p or higher.</li><li>Current maximum size: <span id="uploadLimitLabel">50 MB</span>.</li><li>All public uploads default to pending_review.</li><li>Admins review, approve, reject, or remove videos in Supabase.</li></ul></div></div><div class="panel" style="margin-top:18px"><h2>My uploads</h2><p>Videos uploaded from this device can be deleted here.</p><div id="myUploadList" class="list"><p>No uploads saved on this device yet.</p></div></div></section>
   <section class="page" id="admin"><p class="eyebrow">Moderation</p><h1>Admin review dashboard.</h1><p class="lead">Enter your admin PIN to load uploaded videos, then approve or reject them here.</p><div class="panel"><div class="grid two"><label>Admin PIN<input id="adminPin" type="password" placeholder="Set this in Netlify as ADMIN_PIN"></label><button class="gold-btn" id="loadSubmissions" type="button">Load pending videos</button></div><p id="adminStatus" role="status">Admin actions require Netlify Functions and private environment variables.</p></div><div class="panel" style="margin-top:18px"><div class="table-wrap"><table><thead><tr><th>Title</th><th>Email</th><th>Category</th><th>Status</th><th>Actions</th></tr></thead><tbody id="submissionRows"><tr><td colspan="5">No submissions loaded yet.</td></tr></tbody></table></div></div></section>
   <section class="page" id="privacy"><p class="eyebrow">Legal</p><h1>Privacy Policy</h1><div class="rule"><h2>Information we collect</h2><p>Account details, uploaded videos, captions, reports, moderation decisions, support requests, device data, and analytics needed to operate the app.</p></div><div class="rule"><h2>Use and retention</h2><p>We use information to provide the feed, authenticate uploaders, review content, respond to reports, improve reliability, prevent abuse, and meet legal obligations. Deletion requests go to privacy@example.com.</p></div></section>
   <section class="page" id="terms"><p class="eyebrow">Legal</p><h1>Terms of Service</h1><div class="rule"><h2>User content</h2><p>You keep ownership of your videos while granting the app permission to host, display, distribute, and promote them in the service.</p></div><div class="rule"><h2>Moderation rights</h2><p>The app may reject, remove, restrict, or delete content and accounts to enforce terms, protect users, and satisfy legal or store requirements.</p></div></section>
@@ -174,7 +173,7 @@
     let activeCommentSubmissionId = '';
     function toggleNav(){ drawer.classList.toggle('open'); document.querySelector('.nav-toggle').classList.toggle('open', drawer.classList.contains('open')); }
     function showPage(id){ document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === id)); document.querySelectorAll('.drawer a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#'+id)); drawer.classList.remove('open'); document.querySelector('.nav-toggle').classList.remove('open'); if(id === 'feed') setTimeout(() => goToClip(activeClip, true), 80); else videos.forEach(v => v.pause()); }
-    function toggleMute(){ const muted = !videos[0].muted; videos.forEach(v => v.muted = muted); document.querySelectorAll('.rail .round:first-child').forEach(b => b.textContent = muted ? 'Ã°Å¸â€â€¡' : 'Ã°Å¸â€Å '); }
+    function toggleMute(){ const muted = !videos[0].muted; videos.forEach(v => v.muted = muted); document.querySelectorAll('.rail .round:first-child').forEach(b => b.textContent = muted ? 'M' : 'U'); }
     function shareClip(){ if(navigator.share) navigator.share({title:'Melanin Unity Clips', text:'Check out this clip preview.'}); else alert('Share sheet would open on mobile.'); }
     function refreshFeedItems() {
       clips = [...document.querySelectorAll('.clip')];
@@ -198,12 +197,67 @@
     function escapeHtml(value) {
       return String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     }
+    const APP_MAX_UPLOAD_BYTES = Number(window.MUC_SUPABASE?.maxUploadBytes || 50 * 1024 * 1024);
+    const ACCEPTED_VIDEO_TYPES = {
+      'video/mp4': ['mp4'],
+      'video/quicktime': ['mov'],
+      'video/webm': ['webm'],
+      'video/3gpp': ['3gp'],
+      'video/x-matroska': ['mkv']
+    };
+    document.getElementById('uploadLimitLabel').textContent = formatBytes(APP_MAX_UPLOAD_BYTES);
+    async function fetchJson(url, options = {}) {
+      let response;
+      try {
+        response = await fetch(url, options);
+      } catch {
+        throw new Error('Network connection failed. Check your connection and try again.');
+      }
+      const contentType = response.headers.get('content-type') || '';
+      const text = await response.text();
+      if (!contentType.toLowerCase().includes('application/json')) {
+        const label = response.status ? `HTTP ${response.status}` : 'No HTTP status';
+        throw new Error(`${label}: the server returned a webpage instead of JSON. Check the Netlify function URL, deployment, and environment variables.`);
+      }
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error('The server returned invalid JSON. Try again after redeploying the latest functions.');
+      }
+      if (!response.ok) {
+        const message = data?.error?.message || data?.error || data?.message || `Request failed with HTTP ${response.status}.`;
+        const error = new Error(message);
+        error.code = data?.error?.code || data?.code;
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    }
+    function getFileExtension(file) {
+      return String(file?.name || '').split('.').pop().toLowerCase();
+    }
+    async function detectVideoType(file) {
+      const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+      const ascii = Array.from(bytes).map(byte => byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.').join('');
+      const ext = getFileExtension(file);
+      const browserType = file.type || '';
+      const isIsoMedia = ascii.includes('ftyp');
+      const isEbml = bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
+
+      if (isIsoMedia && ext === 'mov') return { mime: 'video/quicktime', valid: true };
+      if (isIsoMedia && ext === '3gp') return { mime: 'video/3gpp', valid: true };
+      if (isIsoMedia) return { mime: 'video/mp4', valid: true };
+      if (isEbml && ext === 'webm') return { mime: 'video/webm', valid: true };
+      if (isEbml && ext === 'mkv') return { mime: 'video/x-matroska', valid: true };
+      if (ACCEPTED_VIDEO_TYPES[browserType]?.includes(ext)) return { mime: browserType, valid: true };
+      return { mime: browserType || 'application/octet-stream', valid: false };
+    }
     async function loadPublishedClips() {
       if (location.protocol === 'file:') return;
       try {
-        const response = await fetch('/.netlify/functions/public-feed');
-        const data = await response.json();
-        if (!response.ok || !Array.isArray(data.clips) || !data.clips.length) return;
+        const data = await fetchJson('/.netlify/functions/public-feed');
+        if (!Array.isArray(data.clips) || !data.clips.length) return;
         const existingIds = new Set([...document.querySelectorAll('[data-submission-id]')].map(el => el.dataset.submissionId));
         const newClips = data.clips.filter(item => item.id && !existingIds.has(item.id));
         if (!newClips.length) return;
@@ -256,44 +310,6 @@
       }
       return `${size.toFixed(unit ? 2 : 0)} ${units[unit]}`;
     }
-    function getSupabaseProjectId(url) {
-      try { return new URL(url).hostname.split('.')[0]; } catch { return ''; }
-    }
-    function uploadWithTus({ file, path, bucket, config, onProgress }) {
-      if (!window.tus?.Upload) return Promise.reject(new Error('Large upload support did not load. Refresh and try again.'));
-      const projectId = getSupabaseProjectId(config.url);
-      if (!projectId) return Promise.reject(new Error('Supabase project URL is invalid.'));
-      return new Promise((resolve, reject) => {
-        const upload = new window.tus.Upload(file, {
-          endpoint: `https://${projectId}.storage.supabase.co/storage/v1/upload/resumable`,
-          retryDelays: [0, 3000, 5000, 10000, 20000],
-          chunkSize: 6 * 1024 * 1024,
-          uploadDataDuringCreation: true,
-          removeFingerprintOnSuccess: true,
-          headers: {
-            authorization: `Bearer ${config.anonKey}`,
-            apikey: config.anonKey,
-            'x-upsert': 'false'
-          },
-          metadata: {
-            bucketName: bucket,
-            objectName: path,
-            contentType: file.type || 'video/mp4',
-            cacheControl: '3600'
-          },
-          onProgress: (bytesUploaded, bytesTotal) => {
-            const percentage = bytesTotal ? Math.round((bytesUploaded / bytesTotal) * 100) : 0;
-            onProgress?.(percentage, bytesUploaded, bytesTotal);
-          },
-          onError: reject,
-          onSuccess: resolve
-        });
-        upload.findPreviousUploads().then((previousUploads) => {
-          if (previousUploads.length) upload.resumeFromPreviousUpload(previousUploads[0]);
-          upload.start();
-        }).catch(reject);
-      });
-    }
     function getSavedUploads() {
       try { return JSON.parse(localStorage.getItem('mucUploads') || '[]'); } catch { return []; }
     }
@@ -304,13 +320,11 @@
       renderMyUploads();
     }
     async function saveSubmissionMetadata(payload, deleteToken) {
-      const response = await fetch('/.netlify/functions/create-submission', {
+      const data = await fetchJson('/.netlify/functions/create-submission', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ ...payload, owner_delete_token: deleteToken })
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Could not save submission.');
       return { data: data.submission, canSelfDelete: data.canSelfDelete };
     }
     function removeUploadRecord(id) {
@@ -356,18 +370,17 @@
       const title = document.getElementById('uploadTitle')?.value?.trim();
       const caption = document.getElementById('uploadCaption')?.value?.trim();
       const category = document.getElementById('uploadCategory')?.value;
-      const allowedTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
-      const maxBytes = 50 * 1024 * 1024;
       if (!file || !email || !title) {
         setUploadStatus('Add your email, title, and video file before uploading.', true);
         return;
       }
-      if (!allowedTypes.includes(file.type)) {
-        setUploadStatus('Use an MP4, MOV, or WebM video file.', true);
+      const detected = await detectVideoType(file);
+      if (!detected.valid) {
+        setUploadStatus('Use a real MP4, MOV, WebM, 3GP, or compatible MKV video file. Renaming a file is not enough.', true);
         return;
       }
-      if (file.size > maxBytes) {
-        setUploadStatus(`This file is ${formatBytes(file.size)}. The current Supabase plan allows uploads up to 50 MB, so compress or trim the video and try again.`, true);
+      if (file.size > APP_MAX_UPLOAD_BYTES) {
+        setUploadStatus(`This file is ${formatBytes(file.size)}. The current upload limit is ${formatBytes(APP_MAX_UPLOAD_BYTES)}, so compress or trim the video and try again.`, true);
         return;
       }
       const submitButton = document.getElementById('uploadSubmit');
@@ -379,7 +392,7 @@
         const path = `pending/${Date.now()}-${crypto.randomUUID()}-${cleanFileName(file.name)}`;
         const storageResult = await client.storage.from(bucket).upload(path, file, {
           cacheControl: '3600',
-          contentType: file.type,
+          contentType: detected.mime,
           upsert: false
         });
         if (storageResult.error) throw storageResult.error;
@@ -393,7 +406,7 @@
           storage_bucket: bucket,
           storage_path: path,
           original_filename: file.name,
-          file_type: file.type,
+          file_type: detected.mime,
           file_size: file.size,
           status: 'pending_review'
         }, deleteToken);
@@ -410,8 +423,8 @@
         setUploadStatus(metadataResult.canSelfDelete ? 'Upload received. Your video is pending moderation review.' : 'Upload received. Your video is pending moderation review. Self-delete will work after the owner_delete_token SQL is added.');
       } catch (error) {
         const message = String(error?.message || error || '');
-        if (message.includes('413') || message.toLowerCase().includes('maximum size')) {
-          setUploadStatus(`Supabase rejected this ${formatBytes(file.size)} file as too large. The current Supabase plan allows uploads up to 50 MB, so compress or trim the video and try again.`, true);
+        if (error?.status === 413 || error?.code === 'UPLOAD_TOO_LARGE' || message.includes('413') || message.toLowerCase().includes('maximum size')) {
+          setUploadStatus(`This ${formatBytes(file.size)} file is larger than the current ${formatBytes(APP_MAX_UPLOAD_BYTES)} limit. Compress or trim the video and try again.`, true);
         } else {
           setUploadStatus(message || 'Upload failed. Check Supabase policies and try again.', true);
         }
@@ -433,9 +446,7 @@
       }
       setAdminStatus('Loading submissions...');
       try {
-        const response = await fetch('/.netlify/functions/list-submissions', { headers: { 'x-admin-pin': pin } });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Could not load submissions.');
+        const data = await fetchJson('/.netlify/functions/list-submissions', { headers: { 'x-admin-pin': pin } });
         const rows = document.getElementById('submissionRows');
         rows.innerHTML = data.submissions.length ? data.submissions.map(item => `<tr><td>${escapeHtml(item.title)}</td><td>${escapeHtml(item.uploader_email)}</td><td>${escapeHtml(item.category)}</td><td>${escapeHtml(item.status)}</td><td><button class="ghost-btn" onclick="moderateSubmission('${item.id}','published')">Approve</button> <button class="ghost-btn" onclick="moderateSubmission('${item.id}','rejected')">Reject</button> <button class="danger-btn" onclick="moderateSubmission('${item.id}','deleted')">Delete</button></td></tr>`).join('') : '<tr><td colspan="5">No submissions yet.</td></tr>';
         setAdminStatus('Submissions loaded.');
@@ -452,13 +463,11 @@
       if (status === 'deleted' && !confirm('Delete this video from the admin list and storage? This cannot be undone.')) return;
       setAdminStatus(`Saving ${status}...`);
       try {
-        const response = await fetch('/.netlify/functions/moderate-submission', {
+        await fetchJson('/.netlify/functions/moderate-submission', {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-admin-pin': pin },
           body: JSON.stringify({ id, status })
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Moderation failed.');
         await loadSubmissions();
       } catch (error) {
         setAdminStatus(error.message, true);
@@ -492,9 +501,7 @@
       }
       list.innerHTML = '<li>Loading comments...</li>';
       try {
-        const response = await fetch(`/.netlify/functions/comments?submission_id=${encodeURIComponent(activeCommentSubmissionId)}`);
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Could not load comments.');
+        const data = await fetchJson(`/.netlify/functions/comments?submission_id=${encodeURIComponent(activeCommentSubmissionId)}`);
         list.innerHTML = data.comments.length ? data.comments.map(comment => `<li><strong>${escapeHtml(comment.author_name)}</strong>${escapeHtml(comment.body)}</li>`).join('') : '<li>No comments yet.</li>';
       } catch (error) {
         list.innerHTML = `<li>${escapeHtml(error.message)}</li>`;
@@ -509,13 +516,11 @@
       if (!body) return setCommentStatus('Write a comment first.', true);
       setCommentStatus('Posting comment...');
       try {
-        const response = await fetch('/.netlify/functions/comments', {
+        await fetchJson('/.netlify/functions/comments', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ submission_id: activeCommentSubmissionId, author_name: authorName, body })
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Could not post comment.');
         document.getElementById('commentBody').value = '';
         setCommentStatus('Comment posted.');
         await loadComments();
@@ -530,13 +535,11 @@
       if (!confirm('Delete this video permanently? This cannot be undone.')) return;
       setUploadStatus('Deleting video...');
       try {
-        const response = await fetch('/.netlify/functions/delete-own-video', {
+        await fetchJson('/.netlify/functions/delete-own-video', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ id, delete_token: record.deleteToken })
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Could not delete video.');
         removeUploadRecord(id);
         setUploadStatus('Video deleted.');
       } catch (error) {

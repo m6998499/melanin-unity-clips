@@ -48,13 +48,15 @@ jobs:
         run: pnpm cap sync android
 
       - name: Decode signing keystore
-        if: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 != '' }}
         run: |
+          test -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}"
           echo "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > android/app/release-keystore.jks
 
       - name: Configure signing properties
-        if: ${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 != '' }}
         run: |
+          test -n "${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}"
+          test -n "${{ secrets.ANDROID_RELEASE_KEY_ALIAS }}"
+          test -n "${{ secrets.ANDROID_RELEASE_KEY_PASSWORD }}"
           {
             echo "MUC_RELEASE_STORE_FILE=release-keystore.jks"
             echo "MUC_RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_RELEASE_STORE_PASSWORD }}"

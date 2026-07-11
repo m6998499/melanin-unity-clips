@@ -41,6 +41,9 @@ jobs:
       - name: Sync Capacitor Android project
         run: pnpm cap sync android
 
+      - name: Make Gradle executable
+        run: chmod +x android/gradlew
+
       - name: Decode signing keystore
         run: |
           test -n "${{ secrets.ANDROID_RELEASE_KEYSTORE_BASE64 }}"
